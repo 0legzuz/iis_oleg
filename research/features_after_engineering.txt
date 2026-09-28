@@ -1,0 +1,24 @@
+numeric__age
+numeric__trestbps
+numeric__chol
+numeric__thalach
+numeric__oldpeak
+categorical__sex
+categorical__cp
+categorical__fbs
+categorical__restecg
+categorical__exang
+categorical__slope
+categorical__ca
+categorical__thal
+poly__age
+poly__thalach
+poly__oldpeak
+poly__age^2
+poly__age thalach
+poly__age oldpeak
+poly__thalach^2
+poly__thalach oldpeak
+poly__oldpeak^2
+kbins__trestbps
+kbins__chol
