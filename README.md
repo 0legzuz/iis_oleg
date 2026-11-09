@@ -253,3 +253,81 @@ run_id = 857216a4e3f345b8bb9b53c7c8d61a57
 > Здесь используется `mlflow==3.16.1` с актуальным `numpy==2.5.3`: откат numpy
 > до 1.26.4 сломал бы блокнот ЛР1, который работает на `pandas==3.0.5`.
 > Совместимость проверена — оба блокнота выполняются в одном окружении без ошибок.
+
+# Сервис предсказаний
+
+Микросервис на FastAPI, отдающий предсказания Production-модели из ЛР2.
+Код в `./services`, образ собирается и запускается в Docker.
+
+## Состав
+
+```
+services/
+  ml_service/
+    main.py            FastAPI-приложение: эндпоинты / и /api/prediction
+    api_handler.py     класс FastAPIHandler — загрузка модели и предсказание
+    requirements.txt   зависимости только для образа (не путать с корневым)
+    Dockerfile         сборка образа, команды build и run в конце файла
+  models/
+    get_model.py       выгрузка Production-модели из MLflow в model.pkl
+    model.pkl          сама модель (в репозиторий не коммитится)
+```
+
+## Получение модели
+
+Файл `model.pkl` в репозитории не хранится. Перед запуском сервиса его нужно
+выгрузить из MLflow — сервер должен быть запущен:
+
+```shell
+cd mlflow && sh start_mlflow.sh      # в отдельном терминале
+cd services/models && python get_model.py
+```
+
+Скрипт берёт модель по `run_id` Production-прогона
+(`857216a4e3f345b8bb9b53c7c8d61a57`) и сохраняет в `model.pkl`.
+
+## Запуск без Docker
+
+```shell
+cd services/ml_service
+uvicorn main:app --reload
+```
+
+Документация и форма для запросов: http://localhost:8000/docs
+
+## Сборка образа и запуск контейнера
+
+```shell
+cd services/ml_service
+docker build -t heart-disease-service:1 .
+docker run -p 8000:8000 -v $(pwd)/../models:/models heart-disease-service:1
+```
+
+Каталог `models` подключается томом, поэтому модель не попадает внутрь образа —
+её можно заменить, не пересобирая контейнер.
+
+## Проверка работоспособности
+
+```shell
+curl http://localhost:8000/
+# {"Hello":"World"}
+
+curl -X POST "http://localhost:8000/api/prediction?item_id=123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "age": 63, "sex": 1, "cp": 3, "trestbps": 145, "chol": 233,
+    "fbs": 1, "restecg": 0, "thalach": 150, "exang": 0,
+    "oldpeak": 2.3, "slope": 0, "ca": 0, "thal": 1
+  }'
+# {"item_id":123,"predict":1,"probability":0.7982}
+```
+
+`item_id` передаётся параметром URL, признаки объекта — телом запроса.
+В ответе `predict` — предсказанный класс, `probability` — вероятность класса 1.
+
+> **Замечание по переносу модели.** В ЛР2 отбор признаков был реализован классом
+> `IndexSelector`, описанным прямо в блокноте. Такой класс сохраняется вместе
+> с моделью «по значению», и в контейнере на Python 3.11 его метод `transform`
+> зависает. Поэтому `get_model.py` заменяет этот шаг на штатный
+> `ColumnTransformer` с `passthrough` по тем же индексам. Предсказания при этом
+> не меняются — проверено на всей выборке из 296 объектов.
