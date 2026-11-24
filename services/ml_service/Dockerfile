@@ -15,7 +15,7 @@ EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Сборка образа (выполнять из каталога ml_service):
-# docker build -t heart-disease-service:1 .
+# docker build -t heart-disease-service:2 .
 
 # Запуск контейнера:
-# docker run -p 8000:8000 -v $(pwd)/../models:/models heart-disease-service:1
+# docker run -p 8000:8000 -v $(pwd)/../models:/models heart-disease-service:2
